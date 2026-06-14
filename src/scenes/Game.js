@@ -14,6 +14,9 @@ const DIFFICULTY_DIST = 14000;   // この距離で難易度MAX（旧22000。小
 // AIRTIME≒実際の滞空(≈1.0s)なので、係数を1未満にしておけば「どんなに大きくても飛べる範囲」に収まる。
 const PIT_MIN_W = 170;           // 穴の最小幅(px)
 const PIT_MAX_FACTOR = 0.66;     // 到達距離に対する穴幅の最大割合（安全マージン込み。大きいほど穴が広い）
+// 弾とカビの当たりは高さの重なりで判定。カビ中心が弾より HIT_TOP_MARGIN px 超えて上なら当たらない。
+// （浮遊カビが下りてきて弾の高さに重なれば命中。高い位置のままなら要ジャンプ撃ち）
+const HIT_TOP_MARGIN = 40;
 const KING_X = 260;
 const GROUND_TOP = 627;
 const GROUND_MOLD_Y = 587;       // 地上カビ中心
@@ -225,7 +228,6 @@ export default class Game extends Phaser.Scene {
     }
     const m = king.muzzle();          // キング実座標から発射（ジャンプ/落下中も体から出る）
     bolt.setPosition(m.x, m.y);
-    bolt.firedAirborne = !!king.airborne;   // ジャンプ中に撃った弾だけ空中カビに当たる
     bolt.fire();
     // 噴射: 前方に霧/泡を勢いよく
     this.add.particles(m.x - 10, m.y, "bubble", {
@@ -241,9 +243,9 @@ export default class Game extends Phaser.Scene {
 
   onBoltHit(bolt, mold) {
     if (!bolt.active || !mold.active) return;
-    // 地上のキングが撃った弾は、空中（浮いている/落下中）のカビには当たらない＝ジャンプ撃ちが必要
-    const aerial = mold.y < GROUND_MOLD_Y - 50;
-    if (aerial && !bolt.firedAirborne) return;
+    // 高さの重なりで判定: カビ中心が弾よりかなり上にある時だけ当たらない。
+    // 浮遊カビが下りてきて弾の高さに重なれば命中、ジャンプして撃てば高い位置にも当たる。
+    if (mold.y < bolt.y - HIT_TOP_MARGIN) return;
     if (DEBUG) console.log("[HIT] bolt->mold", mold.kind, "hp", mold.hp);
     bolt.kill();
     SFX.hit();
