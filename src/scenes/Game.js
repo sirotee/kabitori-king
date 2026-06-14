@@ -245,7 +245,8 @@ export default class Game extends Phaser.Scene {
     if (!bolt.active || !mold.active) return;
     // 高さの重なりで判定: カビ中心が弾よりかなり上にある時だけ当たらない。
     // 浮遊カビが下りてきて弾の高さに重なれば命中、ジャンプして撃てば高い位置にも当たる。
-    if (mold.y < bolt.y - HIT_TOP_MARGIN) return;
+    // ただしボス(一番大きいピンクの浮遊カビ)は高さに関係なく常に当たる。
+    if (mold.kind !== "boss" && mold.y < bolt.y - HIT_TOP_MARGIN) return;
     if (DEBUG) console.log("[HIT] bolt->mold", mold.kind, "hp", mold.hp);
     bolt.kill();
     SFX.hit();
