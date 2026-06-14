@@ -26,11 +26,11 @@
       height: 100vh;          /* JSで実寸に上書き */
       height: 100dvh;          /* 対応ブラウザ向けフォールバック */
       background: #0e0a1e;
-      padding:
-        env(safe-area-inset-top)
-        env(safe-area-inset-right)
-        env(safe-area-inset-bottom)
-        env(safe-area-inset-left);
+      /* ノッチは片側だけinsetが大きく非対称になり、Canvasが画面中央からずれる。
+         左右(と上下)を「大きい方の値」で揃え、ノッチを避けつつ画面中央に対称配置する。 */
+      --inset-x: max(env(safe-area-inset-left), env(safe-area-inset-right));
+      --inset-y: max(env(safe-area-inset-top), env(safe-area-inset-bottom));
+      padding: var(--inset-y) var(--inset-x);
     }
 
     /* Phaserの親。セーフエリア内いっぱい。CanvasをFITで中央に収める */
@@ -44,8 +44,8 @@
     /* タッチUI（セーフエリア内に配置されるので端で途切れない） */
     #touch-ui {
       position: absolute;
-      inset: env(safe-area-inset-top) env(safe-area-inset-right)
-             env(safe-area-inset-bottom) env(safe-area-inset-left);
+      inset: max(env(safe-area-inset-top), env(safe-area-inset-bottom))
+             max(env(safe-area-inset-left), env(safe-area-inset-right));
       pointer-events: none;
       display: none;            /* タッチ端末のみ表示 */
       z-index: 10;
