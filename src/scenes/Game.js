@@ -449,10 +449,11 @@ export default class Game extends Phaser.Scene {
       const JD = Phaser.Input.Keyboard.JustDown;
       const tJump = touch.jumpEdge; touch.jumpEdge = false;
       const tFire = touch.fireEdge; touch.fireEdge = false;
+      // PC操作: ↑=ジャンプ / Space=魔法（X/Zは魔法の予備キー）
       this.king.handle({
-        fire: k.x.isDown || k.z.isDown || touch.fire,
-        jumpJust: JD(k.up) || JD(k.space) || JD(k.w) || tJump,
-        fireJust: JD(k.x) || JD(k.z) || tFire,
+        fire: k.space.isDown || k.x.isDown || k.z.isDown || touch.fire,
+        jumpJust: JD(k.up) || tJump,
+        fireJust: JD(k.space) || JD(k.x) || JD(k.z) || tFire,
       }, time, dt, this.groundUnderKing());
 
       // スクロール速度は一定（距離による上昇なし）
