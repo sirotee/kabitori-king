@@ -62,7 +62,8 @@ export default class Game extends Phaser.Scene {
     // --- 背景 ---
     this.bg = this.add.tileSprite(0, 0, width, height, "bg_cathedral")
       .setOrigin(0, 0).setScrollFactor(0).setDepth(0);
-    this.bgScale = height / 1536;
+    // 縦を画面高さに合わせる係数。テクスチャ実寸基準なので素材を縮小しても正しくタイリングする
+    this.bgScale = height / this.textures.get("bg_cathedral").getSourceImage().height;
     this.bg.tileScaleX = this.bgScale;
     this.bg.tileScaleY = this.bgScale;
     this.add.rectangle(0, 0, width, height, 0x1a1540, 0.18).setOrigin(0, 0).setDepth(1);
@@ -96,7 +97,7 @@ export default class Game extends Phaser.Scene {
     this.keys = this.input.keyboard.addKeys({ up: K.UP, space: K.SPACE, w: K.W, x: K.X, z: K.Z, esc: K.ESC });
 
     this.hiscore = parseInt(localStorage.getItem(HISCORE_KEY) || "0", 10) || 0;
-    BGM.init(this); BGM.play();   // タイトルから継続（再生中なら二重再生しない）
+    BGM.ensureLoaded(this); BGM.play();   // 未ロードでも完了時に自動再生。再生中なら二重再生しない
     this.createHUD();
   }
 

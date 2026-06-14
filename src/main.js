@@ -55,4 +55,27 @@ const config = {
 
 const game = new Phaser.Game(config);
 window.game = game;   // デバッグ用
+
+// --- 画面向き対応 ---
+// 横スクロールゲームなので横持ち前提。縦持ち時は #rotate-hint を出し、
+// プレイ中(Game)は一時停止して、横に戻したら続きから再開する。
+const portraitMQ = window.matchMedia("(orientation: portrait)");
+function applyOrientation() {
+  const portrait = portraitMQ.matches;
+  document.body.classList.toggle("portrait", portrait);
+  if (portrait) {
+    if (game.scene.isActive("Game")) game.scene.pause("Game");
+  } else {
+    if (game.scene.isPaused("Game")) game.scene.resume("Game");
+  }
+  // セーフエリア内にCanvasを収め直す
+  game.scale.refresh();
+}
+// addEventListener("change") が古い実装では未対応なのでフォールバック
+if (portraitMQ.addEventListener) portraitMQ.addEventListener("change", applyOrientation);
+else portraitMQ.addListener(applyOrientation);
+window.addEventListener("resize", () => game.scale.refresh());
+window.addEventListener("orientationchange", () => setTimeout(applyOrientation, 250));
+applyOrientation();
+
 export default game;

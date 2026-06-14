@@ -6,7 +6,7 @@ export default class Title extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
-    BGM.init(this);
+    BGM.ensureLoaded(this);   // タイトル表示中に裏でBGMを読み込む（初回操作までに間に合う）
 
     const bg = this.add.image(width / 2, height / 2, "bg_cathedral");
     bg.setDisplaySize(width, height);

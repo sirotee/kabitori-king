@@ -2,28 +2,50 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <!-- viewport-fit=cover でノッチ/ホームバー領域も使い、env(safe-area-inset-*) を有効化 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>カビ取りキング ～魔法の大聖堂～</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       width: 100%; height: 100%;
-      background: #1a1530;
+      background: #0e0a1e;
       overflow: hidden;
       font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
       -webkit-tap-highlight-color: transparent;
       touch-action: none;
+      overscroll-behavior: none;
     }
+
+    /* 画面全体（実ビューポート）。高さはJSで window.innerHeight を反映してiOSのアドレスバー問題を回避。
+       セーフエリア分だけ内側に寄せ、その内側(=#game-wrap)にCanvasを収める。 */
+    #stage {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;          /* JSで実寸に上書き */
+      height: 100dvh;          /* 対応ブラウザ向けフォールバック */
+      background: #0e0a1e;
+      padding:
+        env(safe-area-inset-top)
+        env(safe-area-inset-right)
+        env(safe-area-inset-bottom)
+        env(safe-area-inset-left);
+    }
+
+    /* Phaserの親。セーフエリア内いっぱい。CanvasをFITで中央に収める */
     #game-wrap {
       position: relative;
-      width: 100vw; height: 100vh;
+      width: 100%; height: 100%;
       display: flex; align-items: center; justify-content: center;
     }
-    canvas { display: block; }
+    canvas { display: block; max-width: 100%; max-height: 100%; }
 
-    /* タッチUI */
+    /* タッチUI（セーフエリア内に配置されるので端で途切れない） */
     #touch-ui {
-      position: absolute; inset: 0;
+      position: absolute;
+      inset: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
       pointer-events: none;
       display: none;            /* タッチ端末のみ表示 */
       z-index: 10;
@@ -43,19 +65,72 @@
       transition: background .08s;
     }
     .tbtn:active { background: rgba(140, 160, 240, 0.8); }
-    #btn-jump  { left: 4vmin;  bottom: 5vmin; width: 20vmin; height: 20vmin;
+    /* 横持ち基準。vmin(=短辺=高さ)基準なので画面下部に確実に収まる */
+    #btn-jump  { left: 3vmin;  bottom: 3vmin; width: 18vmin; height: 18vmin;
                  background: rgba(80,160,110,0.5); }
-    #btn-fire  { right: 4vmin; bottom: 5vmin; width: 22vmin; height: 22vmin;
-                 background: rgba(180,110,200,0.5); font-size: 5.5vmin; }
+    #btn-fire  { right: 3vmin; bottom: 3vmin; width: 20vmin; height: 20vmin;
+                 background: rgba(180,110,200,0.5); font-size: 5vmin; }
+
+    /* 縦持ち案内オーバーレイ（横スクロールゲームなので横持ち推奨） */
+    #rotate-hint {
+      display: none;
+      position: fixed; inset: 0; z-index: 100;
+      background: radial-gradient(circle at 50% 40%, #2a2150, #0e0a1e 80%);
+      color: #fff; text-align: center;
+      align-items: center; justify-content: center;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right)
+               env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    body.portrait #rotate-hint { display: flex; }
+    .rh-icon {
+      font-size: 64px; line-height: 1;
+      display: inline-block;
+      animation: rh-rotate 1.8s ease-in-out infinite;
+    }
+    @keyframes rh-rotate {
+      0%, 40%   { transform: rotate(0deg); }
+      60%, 100% { transform: rotate(90deg); }
+    }
+    .rh-title { margin-top: 22px; font-size: 26px; font-weight: 700; color: #ffe27a; }
+    .rh-sub   { margin-top: 12px; font-size: 16px; line-height: 1.7; color: #cfd6ff; }
   </style>
 </head>
 <body>
-  <div id="game-wrap">
+  <div id="stage">
+    <div id="game-wrap"></div>
     <div id="touch-ui">
       <div class="tbtn" id="btn-jump">JUMP</div>
       <div class="tbtn" id="btn-fire">魔法</div>
     </div>
   </div>
+
+  <!-- 縦持ち時の案内 -->
+  <div id="rotate-hint">
+    <div>
+      <div class="rh-icon">📱</div>
+      <div class="rh-title">横向きにしてください</div>
+      <div class="rh-sub">スマホを横にすると<br>ゲーム画面が広く表示されます</div>
+    </div>
+  </div>
+
+  <script>
+    // iOS Safari のアドレスバーで 100vh がずれる問題に対応：
+    // 実ビューポート高(window.innerHeight)を #stage の高さに反映する。
+    (function () {
+      var stage = document.getElementById("stage");
+      function applyHeight() {
+        stage.style.height = window.innerHeight + "px";
+      }
+      applyHeight();
+      window.addEventListener("resize", applyHeight);
+      window.addEventListener("orientationchange", function () {
+        setTimeout(applyHeight, 250);
+      });
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", applyHeight);
+      }
+    })();
+  </script>
 
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
   <script type="module" src="./src/main.js"></script>
