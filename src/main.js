@@ -41,7 +41,9 @@ const config = {
   pixelArt: false,
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    // 中央寄せは親(#game-wrap)のflexで行う。Phaser側のautoCenterと二重にかかると
+    // Canvasにmarginが足され横にずれるため NO_CENTER にする。
+    autoCenter: Phaser.Scale.NO_CENTER,
   },
   render: { antialias: true, roundPixels: false },   // 丸めると小さな上下動が階段状になるためOFF
   physics: {
