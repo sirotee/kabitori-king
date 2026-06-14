@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>カビ取りキング ～魔法の大聖堂～</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #1a1530;
+      overflow: hidden;
+      font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+    }
+    #game-wrap {
+      position: relative;
+      width: 100vw; height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+    }
+    canvas { display: block; }
+
+    /* タッチUI */
+    #touch-ui {
+      position: absolute; inset: 0;
+      pointer-events: none;
+      display: none;            /* タッチ端末のみ表示 */
+      z-index: 10;
+    }
+    body.touch #touch-ui { display: block; }
+    .tbtn {
+      position: absolute;
+      pointer-events: auto;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 700; font-size: 4.2vmin;
+      background: rgba(80, 90, 160, 0.45);
+      border: 2px solid rgba(255,255,255,0.55);
+      border-radius: 50%;
+      width: 15vmin; height: 15vmin;
+      user-select: none;
+      backdrop-filter: blur(2px);
+      transition: background .08s;
+    }
+    .tbtn:active { background: rgba(140, 160, 240, 0.8); }
+    #btn-jump  { left: 4vmin;  bottom: 5vmin; width: 20vmin; height: 20vmin;
+                 background: rgba(80,160,110,0.5); }
+    #btn-fire  { right: 4vmin; bottom: 5vmin; width: 22vmin; height: 22vmin;
+                 background: rgba(180,110,200,0.5); font-size: 5.5vmin; }
+  </style>
+</head>
+<body>
+  <div id="game-wrap">
+    <div id="touch-ui">
+      <div class="tbtn" id="btn-jump">JUMP</div>
+      <div class="tbtn" id="btn-fire">魔法</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
