@@ -29,7 +29,7 @@ export default class Result extends Phaser.Scene {
     this.add.image(width / 2, height * 0.70, "king_tired").setScale(0.5).setAlpha(0.85);
 
     // 到達距離・スコア
-    this.add.text(width / 2, height * 0.24, `到達距離  ${this.dist} m`, {
+    this.add.text(width / 2, height * 0.24, `${this.dist} m`, {
       fontFamily: "sans-serif", fontSize: "36px", color: "#ffffff",
       fontStyle: "bold", stroke: "#000", strokeThickness: 5,
     }).setOrigin(0.5);

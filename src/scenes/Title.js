@@ -32,7 +32,7 @@ export default class Title extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
-    const start = this.add.text(width / 2, height * 0.88, "▶ Tap / Space", {
+    const start = this.add.text(width / 2, height * 0.88, "Tap / Space", {
       fontFamily: "sans-serif", fontSize: "26px", color: "#ffffff",
       backgroundColor: "#5b4bd6", padding: { x: 20, y: 12 },
     }).setOrigin(0.5);
