@@ -365,13 +365,8 @@ export default class Game extends Phaser.Scene {
       stroke: "#000", strokeThickness: 3,
     }).setOrigin(1, 0).setScrollFactor(0).setDepth(30);
 
-    // ミュートボタン（右上）
-    this.muteBtn = this.add.text(width - 18, 14, BGM.isMuted() ? "🔇" : "🔊", {
-      fontSize: "28px", backgroundColor: "#00000055", padding: { x: 8, y: 5 },
-    }).setOrigin(1, 0).setScrollFactor(0).setDepth(31).setInteractive({ useHandCursor: true });
-    const toggleMute = () => { BGM.toggleMute(); this.muteBtn.setText(BGM.isMuted() ? "🔇" : "🔊"); };
-    this.muteBtn.on("pointerdown", toggleMute);
-    this.input.keyboard.on("keydown-M", toggleMute);
+    // ミュートは画面ボタンを廃止し、キーボードMのみで切替
+    this.input.keyboard.on("keydown-M", () => BGM.toggleMute());
     this.starText = this.add.text(width / 2, 58, "", {
       fontSize: "22px", color: "#ffe14a", fontStyle: "bold", stroke: "#5a3a10", strokeThickness: 4,
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(30);

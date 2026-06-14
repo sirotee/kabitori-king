@@ -29,29 +29,17 @@ export default class Title extends Phaser.Scene {
       stroke: "#2a1a50", strokeThickness: 3,
     }).setOrigin(0.5);
 
-    const start = this.add.text(width / 2, height * 0.88, "▶ タップ / Space でスタート", {
+    const start = this.add.text(width / 2, height * 0.88, "▶ Tap / Space", {
       fontFamily: "sans-serif", fontSize: "26px", color: "#ffffff",
       backgroundColor: "#5b4bd6", padding: { x: 20, y: 12 },
     }).setOrigin(0.5);
     this.tweens.add({ targets: start, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
 
-    // ミュートボタン（右上）
-    this.muteBtn = this.add.text(width - 16, 16, this.muteLabel(), {
-      fontSize: "30px", backgroundColor: "#00000055", padding: { x: 10, y: 6 },
-    }).setOrigin(1, 0).setDepth(30).setInteractive({ useHandCursor: true });
-
     const startGame = () => { SFX.unlock(); BGM.play(); this.scene.start("Game"); };
     this.input.keyboard.once("keydown-SPACE", startGame);
     this.input.keyboard.once("keydown-ENTER", startGame);
-    this.input.keyboard.on("keydown-M", () => { BGM.toggleMute(); this.muteBtn.setText(this.muteLabel()); });
-    // タップ: ミュートボタン上ならミュート切替、それ以外はスタート
-    this.input.on("pointerdown", (pointer) => {
-      if (this.muteBtn.getBounds().contains(pointer.x, pointer.y)) {
-        BGM.toggleMute(); this.muteBtn.setText(this.muteLabel()); return;
-      }
-      startGame();
-    });
+    this.input.keyboard.on("keydown-M", () => BGM.toggleMute());   // ミュートは画面ボタン廃止・Mキーのみ
+    // タップでスタート
+    this.input.on("pointerdown", startGame);
   }
-
-  muteLabel() { return BGM.isMuted() ? "🔇" : "🔊"; }
 }
