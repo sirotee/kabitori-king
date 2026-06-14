@@ -384,7 +384,7 @@ export default class Game extends Phaser.Scene {
     this.distText.setText(`${Math.floor(this.dist / 10)} m`);
     this.scoreText.setText("SCORE " + this.score);
     const rem = this.king.invincibleUntil - this.time.now;
-    this.starText.setText(rem > 0 ? `⭐ 無敵 ${Math.ceil(rem / 1000)}` : "");
+    this.starText.setText(rem > 0 ? `⭐ カビ取りモード ${Math.ceil(rem / 1000)}` : "");
 
     // 洗剤ゲージ更新（無敵中=金で撃ち放題、残量わずか=赤、通常=水色）
     const ratio = Phaser.Math.Clamp(this.detergent / DETERGENT_MAX, 0, 1);
