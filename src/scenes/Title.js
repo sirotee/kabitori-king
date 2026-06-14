@@ -12,7 +12,7 @@ export default class Title extends Phaser.Scene {
     bg.setDisplaySize(width, height);
     this.add.rectangle(width / 2, height / 2, width, height, 0x1a1540, 0.35);
 
-    const king = this.add.image(width / 2, height * 0.6 - 30, "king_cast").setScale(0.95);
+    const king = this.add.image(width / 2, height * 0.6 - 60, "king_cast").setScale(0.95);
     this.tweens.add({ targets: king, y: king.y - 16, duration: 1100, yoyo: true, repeat: -1, ease: "Sine.inOut" });
 
     this.add.text(width / 2, height * 0.16, "カビ取りキング", {
