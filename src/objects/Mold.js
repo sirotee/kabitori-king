@@ -4,9 +4,10 @@ const COLORS = ["pink", "green", "purple", "yellow", "blue"];
 
 // === 動きパターンのパラメータ（調整しやすいよう集約）===
 const MOVE = {
-  flyer:  { bobAmp: 60, bobHz: 0.8 },                                  // 飛行: 上下振幅(px)・周期(Hz)
-  jumper: { strength: 760, gravity: 1900, intervalMin: 800, intervalMax: 1500 }, // 飛びかかり: 初速・重力・間隔(ms)
-  roller: { extraSpeed: 260, spin: 12 },                              // 転がり: スクロールへの加算速度・回転(rad/s)
+  flyer:   { bobAmp: 60, bobHz: 0.8 },                                  // 飛行: 上下振幅(px)・周期(Hz)
+  jumper:  { strength: 760, gravity: 1900, intervalMin: 800, intervalMax: 1500 }, // 飛びかかり: 初速・重力・間隔(ms)
+  roller:  { extraSpeed: 260, spin: 12 },                              // 転がり: スクロールへの加算速度・回転(rad/s)
+  dropper: { gravity: 1500, startY: 80 },                             // 落下: 重力・出現する高さ(px)
 };
 
 export default class Mold extends Phaser.Physics.Arcade.Sprite {
@@ -43,12 +44,19 @@ export default class Mold extends Phaser.Physics.Arcade.Sprite {
 
     // 動きパターン用の状態
     this.scrollSpeed = speed;
-    this.baseY = y;                                              // 基準の高さ
+    this.baseY = y;                                              // 基準の高さ（dropperでは着地点）
     this.vy = 0;
     this.grounded = true;
+    this.landed = false;
     this.extraSpeed = behavior === "roller" ? MOVE.roller.extraSpeed : 0;
     this.jumpTimer = Phaser.Math.Between(MOVE.jumper.intervalMin, MOVE.jumper.intervalMax);
     this.phase = Phaser.Math.FloatBetween(0, Math.PI * 2);
+
+    // dropper: 画面上部から出現して落下し、baseY(地上)で着地
+    if (behavior === "dropper") {
+      this.body.reset(x, MOVE.dropper.startY);
+      this.setPosition(x, MOVE.dropper.startY);
+    }
 
     this.setVelocityX(-(speed + this.extraSpeed));
   }
@@ -84,6 +92,17 @@ export default class Mold extends Phaser.Physics.Arcade.Sprite {
         }
       }
       vy = this.vy;
+    } else if (this.behavior === "dropper") {
+      // 上から落下 → baseY(地上)で着地して以降は地上カビ扱い
+      if (!this.landed) {
+        this.vy += MOVE.dropper.gravity * dt;
+        if (this.y >= this.baseY) {
+          this.landed = true; this.vy = 0;
+          vy = (this.baseY - this.y) / dt;   // 1フレームでちょうど着地
+        } else {
+          vy = this.vy;
+        }
+      }
     }
     this.body.velocity.y = vy;
 
