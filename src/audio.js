@@ -38,4 +38,5 @@ export const SFX = {
   lose()   { [440, 330, 247, 165].forEach((f, i) => setTimeout(() => blip({ freq: f, type: "square", dur: 0.22, vol: 0.2 }), i * 150)); },
   star()   { [659, 784, 988, 1318, 1568].forEach((f, i) => setTimeout(() => blip({ freq: f, type: "triangle", dur: 0.12, vol: 0.18 }), i * 70)); },
   fall()   { blip({ freq: 600, freq2: 60, type: "sine", dur: 0.5, vol: 0.25 }); },
+  levelup(){ [784, 988, 1318, 1568, 2093].forEach((f, i) => setTimeout(() => blip({ freq: f, type: "triangle", dur: 0.14, vol: 0.2 }), i * 80)); },
 };

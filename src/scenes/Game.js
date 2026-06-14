@@ -4,6 +4,7 @@ import Mold from "../objects/Mold.js";
 import { touch, DEBUG } from "../main.js";
 import { SFX } from "../audio.js";
 import { BGM } from "../bgm.js";
+import { rankIndex, rankName, rankNameByIndex } from "../rank.js";
 
 // === 速度（一定。スクロール速度はここで決まる）===
 const BASE_SPEED = 360;   // 旧300の1.2倍
@@ -14,10 +15,25 @@ const GROUND_MOLD_Y = 587;       // 地上カビ中心
 const AIR_MOLD_Y = 477;          // 空中カビ中心
 const BOLT_Y = 533;              // 弾の発射高さ
 const ITEM_Y = 440;              // スプレーボトル（ジャンプで取る）
-const STAR_DUR = 8000;           // 無敵時間(ms)
+const STAR_DUR = 5000;           // 無敵時間(ms)
 const AIRTIME = 1.0;             // おおよそのジャンプ滞空(s)。穴幅上限の算出に使用
 
+// === 洗剤ゲージ（スプレー連射制限・すべて調整用変数）===
+const DETERGENT_MAX = 100;       // ゲージ最大量
+const DETERGENT_COST = 34;       // スプレー1発の消費量（≒3発で空）
+const DETERGENT_REGEN = 24;      // 1秒あたりの回復量（撃たずにいると徐々に回復）
+
+// === カビの動きパターン出現率（重み。difficulty 0→1 で min→max を線形補間）===
+// 進むほど複雑なパターン(flyer/jumper/roller)の比率が上がるよう ground を減らす
+const MOLD_PATTERNS = {
+  ground: { min: 0.70, max: 0.34 },  // 通常地上（既存）
+  flyer:  { min: 0.18, max: 0.24 },  // 飛行（ふわふわ上下）
+  jumper: { min: 0.06, max: 0.22 },  // たまに飛びかかる（dist>2500で解禁）
+  roller: { min: 0.06, max: 0.22 },  // 高速で転がる（dist>3500で解禁）
+};
+
 const HISCORE_KEY = "kabi_hiscore_dist";
+const RANK_BEST_KEY = "kabi_best_rank";   // 最高到達称号インデックス
 
 export default class Game extends Phaser.Scene {
   constructor() { super("Game"); }
@@ -31,6 +47,8 @@ export default class Game extends Phaser.Scene {
     this.nextSpawnDist = 700;
     this.nextItemDist = 1800;
     this.aura = null;
+    this.detergent = DETERGENT_MAX;   // 洗剤ゲージ残量
+    this.rankIdx = 0;                 // 現在の称号インデックス
 
     // --- 背景 ---
     this.bg = this.add.tileSprite(0, 0, width, height, "bg_cathedral")
@@ -115,31 +133,57 @@ export default class Game extends Phaser.Scene {
 
   createGroundPiece(x0, w) {
     const { height } = this.scale;
+    // 塗りは枠線なし。隣接セグメント間に縦の継ぎ目（チラつき）が出ないようにする
     const seg = this.add.rectangle(x0, GROUND_TOP, w, height - GROUND_TOP, 0x55557a)
       .setOrigin(0, 0).setDepth(3);
-    seg.setStrokeStyle(2, 0x8a8ab0, 0.8);
     this.physics.add.existing(seg);
     seg.body.setAllowGravity(false);
     seg.body.setImmovable(true);
     seg.body.setVelocityX(-this.speed);
+    // 上辺ハイライト（全幅・横線のみ）。縦の継ぎ目を作らず、穴のフチだけ目立たせる
+    seg.top = this.add.rectangle(x0, GROUND_TOP, w, 4, 0x8a8ab0, 0.85)
+      .setOrigin(0, 0).setDepth(4);
     this.groundGroup.add(seg);
   }
 
   // ---------------- 出現 ----------------
-  spawnMold() {
+  // difficulty に応じた重みでカビの動きパターンを選ぶ
+  pickBehavior() {
     const f = this.difficulty();
-    const air = Math.random() < 0.42;
-    const y = air ? AIR_MOLD_Y : GROUND_MOLD_Y;
-    let kind = "normal", hp = null;
-    const r = Math.random();
-    if (f > 0.6 && r < 0.06) kind = "boss";
-    else if (this.dist > 4000 && r < 0.16) kind = "big";
-    else if (this.dist > 2500 && r < 0.16 + f * 0.45) hp = Phaser.Math.Between(2, 3);
-    this.addMold(this.scale.width + 100, kind === "boss" ? AIR_MOLD_Y - 14 : y, kind, hp);
+    const L = (p) => Phaser.Math.Linear(p.min, p.max, f);
+    const w = {
+      ground: L(MOLD_PATTERNS.ground),
+      flyer: L(MOLD_PATTERNS.flyer),
+      jumper: this.dist > 2500 ? L(MOLD_PATTERNS.jumper) : 0,
+      roller: this.dist > 3500 ? L(MOLD_PATTERNS.roller) : 0,
+    };
+    let total = w.ground + w.flyer + w.jumper + w.roller;
+    let r = Math.random() * total;
+    for (const key of ["ground", "flyer", "jumper", "roller"]) {
+      if ((r -= w[key]) < 0) return key;
+    }
+    return "ground";
   }
 
-  addMold(x, y, kind, hp) {
-    const m = new Mold(this, x, y, kind, this.speed, hp);
+  spawnMold() {
+    const f = this.difficulty();
+    const behavior = this.pickBehavior();
+    // 動きパターンで初期高さを決める（飛行=空中、それ以外=地上）
+    let y = behavior === "flyer" ? AIR_MOLD_Y : GROUND_MOLD_Y;
+
+    // 硬さ/大型/ボスは地上・飛行の通常パターンにのみ付与（jumper/rollerは素早い1耐久）
+    let kind = "normal", hp = null;
+    if (behavior === "ground" || behavior === "flyer") {
+      const r = Math.random();
+      if (f > 0.6 && r < 0.06) { kind = "boss"; y = AIR_MOLD_Y - 14; }
+      else if (this.dist > 4000 && r < 0.16) kind = "big";
+      else if (this.dist > 2500 && r < 0.16 + f * 0.45) hp = Phaser.Math.Between(2, 3);
+    }
+    this.addMold(this.scale.width + 100, y, kind, hp, behavior);
+  }
+
+  addMold(x, y, kind, hp, behavior) {
+    const m = new Mold(this, x, y, kind, this.speed, hp, behavior);
     this.molds.add(m);
     m.setDepth(kind === "boss" ? 9 : 7);
     return m;
@@ -160,9 +204,18 @@ export default class Game extends Phaser.Scene {
   }
 
   // ---------------- 魔法（スプレー）----------------
+  // 撃てるか: 無敵中は消費なしで撃ち放題。通常は洗剤が1発分あること
+  canSpray(time) {
+    return this.king.isInvincible(time) || this.detergent >= DETERGENT_COST;
+  }
+
   fireBolt(king) {
     const bolt = this.bolts.get();
     if (!bolt) return;
+    // 無敵中は消費なし。通常はゲージを消費
+    if (!king.isInvincible(this.time.now)) {
+      this.detergent = Math.max(0, this.detergent - DETERGENT_COST);
+    }
     const m = king.muzzle();          // キング実座標から発射（ジャンプ/落下中も体から出る）
     bolt.setPosition(m.x, m.y);
     bolt.fire();
@@ -261,8 +314,17 @@ export default class Game extends Phaser.Scene {
     const newHi = Math.max(this.hiscore, meters);
     localStorage.setItem(HISCORE_KEY, String(newHi));
 
+    // 最高到達称号を記録（今回が更新ならtrue）
+    const curRank = rankIndex(this.score);
+    const prevBestRank = parseInt(localStorage.getItem(RANK_BEST_KEY) || "0", 10) || 0;
+    const bestRank = Math.max(prevBestRank, curRank);
+    localStorage.setItem(RANK_BEST_KEY, String(bestRank));
+
     this.time.delayedCall(1000, () =>
-      this.scene.start("Result", { dist: meters, score: this.score, hi: newHi, best: meters >= this.hiscore }));
+      this.scene.start("Result", {
+        dist: meters, score: this.score, hi: newHi, best: meters >= this.hiscore,
+        rank: curRank, bestRank, newRank: curRank > prevBestRank,
+      }));
   }
 
   // ---------------- HUD ----------------
@@ -282,6 +344,11 @@ export default class Game extends Phaser.Scene {
     this.scoreText = this.add.text(width - 18, 56, "SCORE 0", {
       fontSize: "26px", color: "#ffffff", fontStyle: "bold", stroke: "#000", strokeThickness: 3,
     }).setOrigin(1, 0).setScrollFactor(0).setDepth(30);
+    // 現在の称号（右上・スコアの下に小さく）
+    this.rankText = this.add.text(width - 18, 88, "", {
+      fontFamily: "sans-serif", fontSize: "18px", color: "#ffe27a", fontStyle: "bold",
+      stroke: "#000", strokeThickness: 3,
+    }).setOrigin(1, 0).setScrollFactor(0).setDepth(30);
 
     // ミュートボタン（右上）
     this.muteBtn = this.add.text(width - 18, 14, BGM.isMuted() ? "🔇" : "🔊", {
@@ -293,6 +360,19 @@ export default class Game extends Phaser.Scene {
     this.starText = this.add.text(width / 2, 58, "", {
       fontSize: "22px", color: "#ffe14a", fontStyle: "bold", stroke: "#5a3a10", strokeThickness: 4,
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(30);
+
+    // --- 洗剤ゲージ（左上・MENUの下）---
+    const gx = 18, gy = 82, gw = 220, gh = 22;
+    this.add.text(gx, gy - 22, "🧴 洗剤", {
+      fontFamily: "sans-serif", fontSize: "18px", color: "#dff3ff", fontStyle: "bold",
+      stroke: "#000", strokeThickness: 3,
+    }).setScrollFactor(0).setDepth(31);
+    this.add.rectangle(gx, gy, gw, gh, 0x000000, 0.5).setOrigin(0, 0)
+      .setScrollFactor(0).setDepth(30).setStrokeStyle(2, 0xffffff, 0.7);
+    this.gaugeMaxW = gw - 6;
+    this.gaugeFill = this.add.rectangle(gx + 3, gy + 3, this.gaugeMaxW, gh - 6, 0x5ad1ff)
+      .setOrigin(0, 0).setScrollFactor(0).setDepth(31);
+
     this.updateHUD();
   }
 
@@ -300,7 +380,47 @@ export default class Game extends Phaser.Scene {
     this.distText.setText(`${Math.floor(this.dist / 10)} m`);
     this.scoreText.setText("SCORE " + this.score);
     const rem = this.king.invincibleUntil - this.time.now;
-    this.starText.setText(rem > 0 ? `🧴 無敵 ${Math.ceil(rem / 1000)}` : "");
+    this.starText.setText(rem > 0 ? `⭐ 無敵 ${Math.ceil(rem / 1000)}` : "");
+
+    // 洗剤ゲージ更新（無敵中=金で撃ち放題、残量わずか=赤、通常=水色）
+    const ratio = Phaser.Math.Clamp(this.detergent / DETERGENT_MAX, 0, 1);
+    this.gaugeFill.width = Math.max(0, this.gaugeMaxW * ratio);
+    const low = this.detergent < DETERGENT_COST;   // 1発分未満＝撃てない
+    this.gaugeFill.fillColor = rem > 0 ? 0xffe14a : (low ? 0xff5a5a : 0x5ad1ff);
+
+    // 現在の称号表示
+    this.rankText.setText("称号: " + rankName(this.score));
+  }
+
+  // 昇格演出（画面中央に大きくポップ＋SE）
+  promote(idx) {
+    SFX.levelup();
+    const { width, height } = this.scale;
+    const cx = width / 2, cy = height * 0.38;
+    const wrap = this.add.container(cx, cy).setDepth(40).setScrollFactor(0);
+    const sub = this.add.text(0, -34, "昇格！", {
+      fontFamily: "sans-serif", fontSize: "34px", color: "#fff2a8", fontStyle: "bold",
+      stroke: "#7a4a00", strokeThickness: 6,
+    }).setOrigin(0.5);
+    const name = this.add.text(0, 14, rankNameByIndex(idx), {
+      fontFamily: "sans-serif", fontSize: "52px", color: "#ffffff", fontStyle: "bold",
+      stroke: "#c08000", strokeThickness: 8,
+    }).setOrigin(0.5);
+    wrap.add([sub, name]);
+    // きらめき
+    this.add.particles(cx, cy, "dot", {
+      speed: { min: 120, max: 380 }, scale: { start: 1.1, end: 0 },
+      lifespan: 700, quantity: 28, tint: [0xffe14a, 0xffffff, 0xffc227],
+      blendMode: "ADD", emitting: false,
+    }).setScrollFactor(0).setDepth(39).explode();
+    this.cameras.main.flash(220, 255, 230, 150);
+    // ポップ→保持→上へフェード
+    wrap.setScale(0.2); wrap.setAlpha(0);
+    this.tweens.add({ targets: wrap, scale: 1, alpha: 1, duration: 260, ease: "Back.out" });
+    this.tweens.add({
+      targets: wrap, y: cy - 70, alpha: 0, delay: 1100, duration: 600,
+      onComplete: () => wrap.destroy(),
+    });
   }
 
   // ---------------- ループ ----------------
@@ -326,11 +446,18 @@ export default class Game extends Phaser.Scene {
       this.dist += this.speed * dt;
       this.bg.tilePositionX += (this.speed * dt) / this.bgScale;
 
-      // 全スクロール物体の速度を現在速度に同期（バラつき防止）
+      // スクロール物体の速度を同期。カビは自分の preUpdate で動きパターンを反映するので除外
       const v = -this.speed;
-      this.molds.getChildren().forEach((m) => { if (m.active) m.body.velocity.x = v; });
       this.items.getChildren().forEach((s) => { if (s.active) { s.body.velocity.x = v; if (s.glow) s.glow.x = s.x; } });
-      this.groundGroup.getChildren().forEach((g) => { if (g.active) g.body.velocity.x = v; });
+      this.groundGroup.getChildren().forEach((g) => { if (g.active) { g.body.velocity.x = v; if (g.top) g.top.x = g.x; } });
+
+      // 洗剤ゲージ: 無敵中は満タン維持（撃ち放題）、通常は徐々に回復
+      if (this.king.isInvincible(time)) this.detergent = DETERGENT_MAX;
+      else this.detergent = Math.min(DETERGENT_MAX, this.detergent + DETERGENT_REGEN * dt);
+
+      // 称号アップ判定（スコアがしきい値を越えた瞬間に昇格演出）
+      const idx = rankIndex(this.score);
+      if (idx > this.rankIdx) { this.rankIdx = idx; this.promote(idx); }
 
       // 地面補充
       this.spawnEdge -= this.speed * dt;
@@ -367,7 +494,7 @@ export default class Game extends Phaser.Scene {
     // 画面外破棄（コピー走査）
     this.molds.getChildren().slice().forEach((m) => { if (m.active && m.x < -180) m.destroy(); });
     this.items.getChildren().slice().forEach((s) => { if (s.active && s.x < -140) { if (s.glow) s.glow.destroy(); s.destroy(); } });
-    this.groundGroup.getChildren().slice().forEach((g) => { if (g.active && g.x + g.width < -80) g.destroy(); });
+    this.groundGroup.getChildren().slice().forEach((g) => { if (g.active && g.x + g.width < -80) { if (g.top) g.top.destroy(); g.destroy(); } });
 
     this.updateHUD();
   }

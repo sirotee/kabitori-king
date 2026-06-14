@@ -89,8 +89,10 @@ export default class King extends Phaser.Physics.Arcade.Sprite {
       this.y = this.groundY + bob;                // 接地中: 滑らかなバウンドのみ
     }
 
-    // 魔法
-    if ((input.fireJust || input.fire) && time - this.lastFire >= FIRE_CD) {
+    // 魔法（スプレー）。無敵中は入力に関係なく自動連射。
+    // 通常時は洗剤ゲージが1発分あるときだけ発射（scene.canSprayで判定）
+    const wantFire = input.fireJust || input.fire || this.isInvincible(time);
+    if (wantFire && time - this.lastFire >= FIRE_CD && this.scene.canSpray(time)) {
       this.lastFire = time;
       this.castUntil = time + 200;
       this.scene.fireBolt(this);
