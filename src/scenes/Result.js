@@ -8,6 +8,7 @@ export default class Result extends Phaser.Scene {
     this.dist = data.dist || 0;
     this.score = data.score || 0;
     this.hi = data.hi || 0;
+    this.hiScore = data.hiScore || 0;
     this.best = !!data.best;
     this.rank = data.rank || 0;
     this.bestRank = data.bestRank || 0;
@@ -29,11 +30,11 @@ export default class Result extends Phaser.Scene {
     this.add.image(width / 2, height * 0.70, "king_tired").setScale(0.5).setAlpha(0.85);
 
     // 到達距離・スコア
-    this.add.text(width / 2, height * 0.24, `${this.dist} m`, {
+    this.add.text(width / 2, height * 0.24, `${this.dist} m  (BEST ${this.hi}m)`, {
       fontFamily: "sans-serif", fontSize: "36px", color: "#ffffff",
       fontStyle: "bold", stroke: "#000", strokeThickness: 5,
     }).setOrigin(0.5);
-    this.add.text(width / 2, height * 0.31, `SCORE  ${this.score}`, {
+    this.add.text(width / 2, height * 0.31, `SCORE  ${this.score}  (BEST ${this.hiScore})`, {
       fontFamily: "sans-serif", fontSize: "30px", color: "#ffe27a", fontStyle: "bold",
       stroke: "#000", strokeThickness: 4,
     }).setOrigin(0.5);
@@ -62,21 +63,13 @@ export default class Result extends Phaser.Scene {
 
     // 最高到達称号 / 距離ベスト
     const newBadge = this.newRank ? "  ★最高更新！" : "";
-    this.add.text(width / 2, height * 0.60, `最高到達称号: ${rankNameByIndex(this.bestRank)}${newBadge}`, {
+    this.add.text(width / 2, height * 0.60, `BEST: ${rankNameByIndex(this.bestRank)}${newBadge}`, {
       fontFamily: "sans-serif", fontSize: "22px",
       color: this.newRank ? "#ffd24a" : "#cfd6ff", fontStyle: "bold",
       stroke: "#000", strokeThickness: 4,
     }).setOrigin(0.5);
 
-    const hiTxt = this.best ? `★ NEW BEST  ${this.hi} m ★` : `BEST  ${this.hi} m`;
-    const hi = this.add.text(width / 2, height * 0.66, hiTxt, {
-      fontFamily: "sans-serif", fontSize: "22px",
-      color: this.best ? "#ffd24a" : "#cfd6ff", fontStyle: "bold",
-      stroke: "#000", strokeThickness: 4,
-    }).setOrigin(0.5);
-    if (this.best) this.tweens.add({ targets: hi, scale: 1.12, duration: 500, yoyo: true, repeat: -1 });
-
-    const retry = this.add.text(width / 2, height * 0.86, "▶ もう一度（タップ / Space）", {
+    const retry = this.add.text(width / 2, height * 0.86, "もう一度（タップ / Space）", {
       fontFamily: "sans-serif", fontSize: "26px", color: "#ffffff",
       backgroundColor: "#5b4bd6", padding: { x: 20, y: 12 },
     }).setOrigin(0.5);

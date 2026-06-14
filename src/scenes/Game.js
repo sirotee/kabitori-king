@@ -42,6 +42,7 @@ const MOLD_PATTERNS = {
 };
 
 const HISCORE_KEY = "kabi_hiscore_dist";
+const SCORE_BEST_KEY = "kabi_best_score";  // ベストスコア
 const RANK_BEST_KEY = "kabi_best_rank";   // 最高到達称号インデックス
 
 export default class Game extends Phaser.Scene {
@@ -329,6 +330,11 @@ export default class Game extends Phaser.Scene {
     const newHi = Math.max(this.hiscore, meters);
     localStorage.setItem(HISCORE_KEY, String(newHi));
 
+    // ベストスコアを記録
+    const prevBestScore = parseInt(localStorage.getItem(SCORE_BEST_KEY) || "0", 10) || 0;
+    const newHiScore = Math.max(prevBestScore, this.score);
+    localStorage.setItem(SCORE_BEST_KEY, String(newHiScore));
+
     // 最高到達称号を記録（今回が更新ならtrue）
     const curRank = rankIndex(this.score);
     const prevBestRank = parseInt(localStorage.getItem(RANK_BEST_KEY) || "0", 10) || 0;
@@ -337,7 +343,8 @@ export default class Game extends Phaser.Scene {
 
     this.time.delayedCall(1000, () =>
       this.scene.start("Result", {
-        dist: meters, score: this.score, hi: newHi, best: meters >= this.hiscore,
+        dist: meters, score: this.score, hi: newHi, hiScore: newHiScore,
+        best: meters >= this.hiscore,
         rank: curRank, bestRank, newRank: curRank > prevBestRank,
       }));
   }
