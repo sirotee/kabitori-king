@@ -66,21 +66,18 @@
       transition: transform .06s, background .08s;
     }
     .tbtn:active { transform: scale(0.93); }
-    /* アイコンを主役に大きく。視界の端でも形で識別できるようはっきりしたシルエット */
-    .tbtn .ic { width: 8.5vmin; height: 8.5vmin; display: flex; }
+    /* アイコンのみ（文字なし）。視界の端でも形で識別できるよう大きくはっきり */
+    .tbtn .ic { width: 11vmin; height: 11vmin; display: flex; }
     .tbtn .ic svg { width: 100%; height: 100%; display: block;
       filter: drop-shadow(0 0.4vmin 0.4vmin rgba(0,0,0,0.45)); }
-    .tbtn .lbl { font-size: 2.7vmin; line-height: 1; letter-spacing: 0.5px;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
     /* 横持ち基準。vmin(=短辺=高さ)基準なので画面下部に確実に収まる */
-    /* JUMP=緑＋上矢印 / 魔法=紫＋キラキラ。形と色の両方で直感的に区別 */
-    #btn-jump  { left: 3vmin;  bottom: 3vmin; width: 19vmin; height: 19vmin;
+    /* JUMP=緑＋上矢印 / 魔法=紫＋キラキラ。形と色の両方で直感的に区別。丸の大きさは共通 */
+    #btn-jump  { left: 3vmin;  bottom: 3vmin; width: 20vmin; height: 20vmin;
                  background: rgba(46,168,96,0.6); border-color: rgba(190,255,210,0.85); }
     #btn-jump:active  { background: rgba(70,210,130,0.85); }
-    #btn-fire  { right: 3vmin; bottom: 3vmin; width: 21vmin; height: 21vmin;
+    #btn-fire  { right: 3vmin; bottom: 3vmin; width: 20vmin; height: 20vmin;
                  background: rgba(170,82,205,0.6); border-color: rgba(240,205,255,0.85); }
     #btn-fire:active  { background: rgba(205,110,245,0.85); }
-    #btn-fire .ic { width: 9.5vmin; height: 9.5vmin; }
 
     /* 縦持ち案内オーバーレイ（横スクロールゲームなので横持ち推奨） */
     #rotate-hint {
@@ -118,7 +115,6 @@
                   fill="#ffffff" stroke="#1c5c34" stroke-width="5" stroke-linejoin="round"/>
           </svg>
         </span>
-        <span class="lbl">JUMP</span>
       </div>
       <!-- 魔法: キラキラ（4方向星＋小星）。矢印とは全く違う形で識別 -->
       <div class="tbtn" id="btn-fire">
@@ -131,7 +127,6 @@
             <circle cx="20" cy="78" r="4.5" fill="#fff3b0" stroke="#5a1c70" stroke-width="2.5"/>
           </svg>
         </span>
-        <span class="lbl">魔法</span>
       </div>
     </div>
   </div>
