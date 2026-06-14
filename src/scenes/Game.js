@@ -9,6 +9,7 @@ import { rankIndex, rankName, rankNameByIndex } from "../rank.js";
 // === 速度（一定。スクロール速度はここで決まる）===
 const BASE_SPEED = 360;   // 旧300の1.2倍
 const MAX_SPEED = 580;
+const DIFFICULTY_DIST = 14000;   // この距離で難易度MAX（旧22000。小さいほど難化が早い）
 const KING_X = 260;
 const GROUND_TOP = 627;
 const GROUND_MOLD_Y = 587;       // 地上カビ中心
@@ -91,7 +92,8 @@ export default class Game extends Phaser.Scene {
     this.createHUD();
   }
 
-  difficulty() { return Phaser.Math.Clamp(this.dist / 22000, 0, 1); }
+  // 難易度0→1。DIFFICULTY_DIST の距離で最大に到達（小さいほど難化が早い）
+  difficulty() { return Phaser.Math.Clamp(this.dist / DIFFICULTY_DIST, 0, 1); }
 
   goTitle() {
     this.destroyAura();
