@@ -361,9 +361,13 @@ export default class Game extends Phaser.Scene {
       fontSize: "22px", color: "#ffe14a", fontStyle: "bold", stroke: "#5a3a10", strokeThickness: 4,
     }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(30);
 
-    // --- 洗剤ゲージ（左上・MENUの下）---
+    // --- マジックポイント（左上・MENUの下）---
     const gx = 18, gy = 82, gw = 220, gh = 22;
-    this.add.text(gx, gy - 22, "🧴 洗剤", {
+    // アイコンは無敵アイテム（スプレー杖）の画像を流用
+    this.add.image(gx + 9, gy - 12, "spray_item").setOrigin(0.5)
+      .setScale(26 / this.textures.get("spray_item").getSourceImage().height)
+      .setScrollFactor(0).setDepth(31);
+    this.add.text(gx + 22, gy - 22, "マジックポイント", {
       fontFamily: "sans-serif", fontSize: "18px", color: "#dff3ff", fontStyle: "bold",
       stroke: "#000", strokeThickness: 3,
     }).setScrollFactor(0).setDepth(31);
@@ -398,7 +402,7 @@ export default class Game extends Phaser.Scene {
     const { width, height } = this.scale;
     const cx = width / 2, cy = height * 0.38;
     const wrap = this.add.container(cx, cy).setDepth(40).setScrollFactor(0);
-    const sub = this.add.text(0, -34, "昇格！", {
+    const sub = this.add.text(0, -34, "ランクアップ！", {
       fontFamily: "sans-serif", fontSize: "34px", color: "#fff2a8", fontStyle: "bold",
       stroke: "#7a4a00", strokeThickness: 6,
     }).setOrigin(0.5);

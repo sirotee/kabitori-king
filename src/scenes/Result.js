@@ -53,10 +53,11 @@ export default class Result extends Phaser.Scene {
       fontFamily: "sans-serif", fontSize: "46px", color: "#ffffff", fontStyle: "bold",
       stroke: "#c08000", strokeThickness: 8,
     }).setOrigin(0.5);
-    this.tweens.add({ targets: rankName, scale: 1.06, duration: 700, yoyo: true, repeat: -1 });
-    // 登場演出
-    [panel, rankName].forEach((o) => { o.setScale(0.6); o.setAlpha(0); });
-    this.tweens.add({ targets: [panel, rankName], scale: 1, alpha: 1, duration: 320, ease: "Back.out",
+    // 称号名はサイズ固定（拡縮アニメなし）。パネルのみ登場アニメ、名前はフェードインのみ
+    panel.setScale(0.6); panel.setAlpha(0);
+    rankName.setAlpha(0);
+    this.tweens.add({ targets: panel, scale: 1, alpha: 1, duration: 320, ease: "Back.out" });
+    this.tweens.add({ targets: rankName, alpha: 1, duration: 320,
       onComplete: () => SFX.levelup && SFX.levelup() });
 
     // 最高到達称号 / 距離ベスト
