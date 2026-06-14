@@ -46,7 +46,9 @@ const config = {
   render: { antialias: true, roundPixels: false },   // 丸めると小さな上下動が階段状になるためOFF
   physics: {
     default: "arcade",
-    arcade: { gravity: { y: 1733 }, debug: DEBUG },
+    // fixedStep を切り、物理(カビ/アイテム)も実フレームdeltaで動かす。
+    // 背景・床のdeltaスクロールと刻みが揃い、スクロールのカクつきを防ぐ。
+    arcade: { gravity: { y: 1733 }, debug: DEBUG, fixedStep: false },
   },
   scene: [Boot, Title, Game, Result],
 };

@@ -133,13 +133,11 @@ export default class Game extends Phaser.Scene {
 
   createGroundPiece(x0, w) {
     const { height } = this.scale;
-    // 塗りは枠線なし。隣接セグメント間に縦の継ぎ目（チラつき）が出ないようにする
+    // 塗りは枠線なし。隣接セグメント間に縦の継ぎ目（チラつき）が出ないようにする。
+    // 物理ボディは持たせず、背景と同じ delta 方式で手動スクロールする（カクつき防止）。
+    // 当たり判定(穴判定)は groundUnderKing が g.x/g.width で行うのでボディ不要。
     const seg = this.add.rectangle(x0, GROUND_TOP, w, height - GROUND_TOP, 0x55557a)
       .setOrigin(0, 0).setDepth(3);
-    this.physics.add.existing(seg);
-    seg.body.setAllowGravity(false);
-    seg.body.setImmovable(true);
-    seg.body.setVelocityX(-this.speed);
     // 上辺ハイライト（全幅・横線のみ）。縦の継ぎ目を作らず、穴のフチだけ目立たせる
     seg.top = this.add.rectangle(x0, GROUND_TOP, w, 4, 0x8a8ab0, 0.85)
       .setOrigin(0, 0).setDepth(4);
@@ -453,7 +451,10 @@ export default class Game extends Phaser.Scene {
       // スクロール物体の速度を同期。カビは自分の preUpdate で動きパターンを反映するので除外
       const v = -this.speed;
       this.items.getChildren().forEach((s) => { if (s.active) { s.body.velocity.x = v; if (s.glow) s.glow.x = s.x; } });
-      this.groundGroup.getChildren().forEach((g) => { if (g.active) { g.body.velocity.x = v; if (g.top) g.top.x = g.x; } });
+      // 床は背景と同じ delta で手動移動（物理の固定刻みと混ざらないようにしてカクつきを防ぐ）。
+      // 塗りとハイライトを同一フレームで動かすので1フレームのズレも出ない。
+      const gd = this.speed * dt;
+      this.groundGroup.getChildren().forEach((g) => { if (g.active) { g.x -= gd; if (g.top) g.top.x = g.x; } });
 
       // 洗剤ゲージ: 無敵中は満タン維持（撃ち放題）、通常は徐々に回復
       if (this.king.isInvincible(time)) this.detergent = DETERGENT_MAX;
