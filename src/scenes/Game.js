@@ -496,7 +496,7 @@ export default class Game extends Phaser.Scene {
       // アイテム出現
       if (this.dist >= this.nextItemDist) {
         this.spawnItem();
-        this.nextItemDist += Phaser.Math.Between(3000, 4200);
+        this.nextItemDist += Phaser.Math.Between(3500, 4700);
       }
 
       // 無敵オーラの生成/破棄
