@@ -367,7 +367,7 @@ export default class Game extends Phaser.Scene {
     this.add.image(gx + 9, gy - 12, "spray_item").setOrigin(0.5)
       .setScale(26 / this.textures.get("spray_item").getSourceImage().height)
       .setScrollFactor(0).setDepth(31);
-    this.add.text(gx + 22, gy - 22, "マジックポイント", {
+    this.add.text(gx + 22, gy - 27, "マジックポイント", {
       fontFamily: "sans-serif", fontSize: "18px", color: "#dff3ff", fontStyle: "bold",
       stroke: "#000", strokeThickness: 3,
     }).setScrollFactor(0).setDepth(31);
