@@ -26,7 +26,7 @@ export default class Title extends Phaser.Scene {
 
     // 操作説明はPC(キーボード)のみ表示。スマホ(タッチ)では非表示
     if (!document.body.classList.contains("touch")) {
-      this.add.text(width / 2, height * 0.76, "JUMP: ↑     Magic: Space", {
+      this.add.text(width / 2, height * 0.76 + 30, "JUMP: ↑     Magic: Space", {
         fontFamily: "sans-serif", fontSize: "20px", color: "#dfe4ff",
         stroke: "#2a1a50", strokeThickness: 3,
       }).setOrigin(0.5);
