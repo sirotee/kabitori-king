@@ -54,6 +54,7 @@ export default class Game extends Phaser.Scene {
     this.dist = 0;
     this.speed = BASE_SPEED;
     this.ended = false;
+    this.paused = false;
     this.nextSpawnDist = 700;
     this.nextItemDist = 1800;
     this.aura = null;
@@ -108,6 +109,46 @@ export default class Game extends Phaser.Scene {
   goTitle() {
     this.destroyAura();
     this.scene.start("Title");
+  }
+
+  // ---------------- 一時停止 ----------------
+  togglePause() {
+    if (this.ended) return;
+    this.paused ? this.resumeGame() : this.pauseGame();
+  }
+
+  pauseGame() {
+    if (this.paused || this.ended) return;
+    this.paused = true;
+    this.physics.pause();      // カビ・弾の物理を停止
+    this.tweens.pauseAll();
+    this.pauseBtn.setText("▶ RESUME");
+
+    const { width, height } = this.scale;
+    this.pauseOverlay = this.add.container(0, 0).setScrollFactor(0).setDepth(40);
+    const dim = this.add.rectangle(0, 0, width, height, 0x000000, 0.55)
+      .setOrigin(0, 0).setInteractive();
+    dim.on("pointerdown", () => this.resumeGame());   // 画面タップでも再開
+    const txt = this.add.text(width / 2, height * 0.42, "PAUSED", {
+      fontFamily: "sans-serif", fontSize: "64px", color: "#ffffff", fontStyle: "bold",
+      stroke: "#000", strokeThickness: 6,
+    }).setOrigin(0.5);
+    const hint = this.add.text(width / 2, height * 0.42 + 58, "タップ / ❚❚ で再開", {
+      fontFamily: "sans-serif", fontSize: "24px", color: "#dfe4ff",
+      stroke: "#000", strokeThickness: 3,
+    }).setOrigin(0.5);
+    this.pauseOverlay.add([dim, txt, hint]);
+  }
+
+  resumeGame() {
+    if (!this.paused) return;
+    this.paused = false;
+    this.physics.resume();
+    this.tweens.resumeAll();
+    this.pauseBtn.setText("❚❚ PAUSE");
+    if (this.pauseOverlay) { this.pauseOverlay.destroy(); this.pauseOverlay = null; }
+    // 再開時に溜まった入力エッジをクリア（誤発動防止）
+    touch.jumpEdge = false; touch.fireEdge = false;
   }
 
   // キングの足元に地面セグメントがあるか（穴判定）
@@ -359,6 +400,13 @@ export default class Game extends Phaser.Scene {
     }).setScrollFactor(0).setDepth(31).setInteractive({ useHandCursor: true });
     menu.on("pointerdown", () => this.goTitle());
 
+    // 一時停止ボタン（MENUの右横・同じテイスト）
+    this.pauseBtn = this.add.text(18 + menu.width + 8, 14, "❚❚ PAUSE", {
+      fontFamily: "sans-serif", fontSize: "22px", color: "#ffffff",
+      backgroundColor: "#00000066", padding: { x: 12, y: 7 },
+    }).setScrollFactor(0).setDepth(41).setInteractive({ useHandCursor: true });
+    this.pauseBtn.on("pointerdown", () => this.togglePause());
+
     this.distText = this.add.text(width / 2, 16, "0 m", {
       fontFamily: "sans-serif", fontSize: "34px", color: "#ffffff", fontStyle: "bold",
       stroke: "#000", strokeThickness: 4,
@@ -450,6 +498,8 @@ export default class Game extends Phaser.Scene {
 
     // ESCでタイトルへ（プレイ途中でも即時。状態はcreateで再初期化される）
     if (Phaser.Input.Keyboard.JustDown(this.keys.esc)) { this.goTitle(); return; }
+
+    if (this.paused) return;   // 一時停止中はゲーム進行を止める（HUDボタンは生きたまま）
 
     if (!this.ended) {
       const k = this.keys;
