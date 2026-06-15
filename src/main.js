@@ -45,7 +45,9 @@ const config = {
     // Canvasにmarginが足され横にずれるため NO_CENTER にする。
     autoCenter: Phaser.Scale.NO_CENTER,
   },
-  render: { antialias: true, roundPixels: false },   // 丸めると小さな上下動が階段状になるためOFF
+  // 丸めると小さな上下動が階段状になるためroundPixelsはOFF。
+  // powerPreference: 端末に高性能GPUを要求しスマホのフレームレート低下を抑える。
+  render: { antialias: true, roundPixels: false, powerPreference: "high-performance" },
   physics: {
     default: "arcade",
     // fixedStep を切り、物理(カビ/アイテム)も実フレームdeltaで動かす。
