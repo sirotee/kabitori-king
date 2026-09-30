@@ -103,6 +103,19 @@
       60%, 100% { transform: rotate(90deg); }
     }
     .rh-title { margin-top: 22px; font-size: 26px; font-weight: 700; color: #ffe27a; }
+
+    /* 読み込み失敗（CDN/ネットワーク）時の案内 */
+    #load-error {
+      display: none;
+      position: fixed; inset: 0; z-index: 200;
+      background: #0e0a1e; color: #fff; text-align: center;
+      align-items: center; justify-content: center; padding: 24px;
+    }
+    #load-error.show { display: flex; }
+    #load-error button {
+      margin-top: 18px; font-size: 18px; font-weight: 700; color: #fff;
+      background: #5b4bd6; border: 0; border-radius: 10px; padding: 12px 28px;
+    }
     .rh-sub   { margin-top: 12px; font-size: 16px; line-height: 1.7; color: #cfd6ff; }
   </style>
 </head>
@@ -134,6 +147,15 @@
     </div>
   </div>
 
+  <!-- 読み込み失敗時の案内 -->
+  <div id="load-error">
+    <div>
+      <div class="rh-title">読み込みに失敗しました</div>
+      <div class="rh-sub">通信状況を確認して、もう一度お試しください</div>
+      <button type="button" onclick="location.reload()">再読み込み</button>
+    </div>
+  </div>
+
   <!-- 縦持ち時の案内 -->
   <div id="rotate-hint">
     <div>
@@ -162,7 +184,12 @@
     })();
   </script>
 
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <script>
+    window.showLoadError = function () {
+      document.getElementById("load-error").classList.add("show");
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js" onerror="showLoadError()"></script>
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>

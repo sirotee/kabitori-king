@@ -5,6 +5,7 @@ import { touch, DEBUG } from "../main.js";
 import { SFX } from "../audio.js";
 import { BGM } from "../bgm.js";
 import { rankIndex, rankName, rankNameByIndex } from "../rank.js";
+import { storage } from "../storage.js";
 
 // === 速度（一定。スクロール速度はここで決まる）===
 const BASE_SPEED = 360;   // 旧300の1.2倍
@@ -98,9 +99,37 @@ export default class Game extends Phaser.Scene {
     const K = Phaser.Input.Keyboard.KeyCodes;
     this.keys = this.input.keyboard.addKeys({ up: K.UP, space: K.SPACE, w: K.W, x: K.X, z: K.Z, esc: K.ESC });
 
-    this.hiscore = parseInt(localStorage.getItem(HISCORE_KEY) || "0", 10) || 0;
+    // タイトル画面でタッチボタンを押した入力エッジが残っていると開始直後に勝手にジャンプ/発射する
+    touch.jumpEdge = false; touch.fireEdge = false;
+
+    this.hiscore = storage.getInt(HISCORE_KEY, 0);
     BGM.ensureLoaded(this); BGM.play();   // 未ロードでも完了時に自動再生。再生中なら二重再生しない
     this.createHUD();
+
+    // タブ切替・他アプリへ移動・ウィンドウのフォーカス喪失で自動一時停止。
+    // 復帰した瞬間にカビが目の前にいて即死する事故を防ぐ（タップで再開）。
+    this.onLoseFocus = () => this.pauseGame();
+    this.game.events.on(Phaser.Core.Events.BLUR, this.onLoseFocus);
+    this.game.events.on(Phaser.Core.Events.HIDDEN, this.onLoseFocus);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.game.events.off(Phaser.Core.Events.BLUR, this.onLoseFocus);
+      this.game.events.off(Phaser.Core.Events.HIDDEN, this.onLoseFocus);
+      this.destroyAura();
+      this.pauseOverlay = null;
+    });
+  }
+
+  // 単発パーティクル。explode() だけだとエミッタ自体が画面に残り続け、
+  // 発射・命中・撃破のたびに増えてプレイ時間とともに重くなるので、粒子が消えたら破棄する
+  burst(x, y, cfg) {
+    const { texture = "bubble", depth, scrollFactor, ...opts } = cfg;
+    const em = this.add.particles(x, y, texture, { ...opts, emitting: false });
+    if (depth != null) em.setDepth(depth);
+    if (scrollFactor != null) em.setScrollFactor(scrollFactor);
+    em.explode();
+    const life = typeof opts.lifespan === "number" ? opts.lifespan : (opts.lifespan?.max ?? 1000);
+    this.time.delayedCall(life + 100, () => { if (em.scene) em.destroy(); });
+    return em;
   }
 
   // 難易度0→1。DIFFICULTY_DIST の距離で最大に到達（小さいほど難化が早い）
@@ -273,15 +302,14 @@ export default class Game extends Phaser.Scene {
     bolt.setPosition(m.x, m.y);
     bolt.fire();
     // 噴射: 前方に霧/泡を勢いよく
-    this.add.particles(m.x - 10, m.y, "bubble", {
+    this.burst(m.x - 10, m.y, {
       angle: { min: -26, max: 26 },
       speed: { min: 180, max: 460 },
       scale: { start: 0.7, end: 0 },
       alpha: { start: 0.95, end: 0 },
       lifespan: 300, quantity: 16,
       tint: [0xffffff, 0xd6f3ff, 0xb8ecff],
-      emitting: false,
-    }).explode();
+    });
   }
 
   onBoltHit(bolt, mold) {
@@ -294,11 +322,11 @@ export default class Game extends Phaser.Scene {
     bolt.kill();
     SFX.hit();
     // はじける泡
-    this.add.particles(mold.x, mold.y, "bubble", {
+    this.burst(mold.x, mold.y, {
       speed: { min: 60, max: 200 }, scale: { start: 0.6, end: 0 },
       alpha: { start: 0.9, end: 0 }, lifespan: 300, quantity: 8,
-      tint: [0xffffff, 0xd6f3ff], emitting: false,
-    }).explode();
+      tint: [0xffffff, 0xd6f3ff],
+    });
     if (mold.damage(1)) this.popMold(mold);
   }
 
@@ -307,11 +335,12 @@ export default class Game extends Phaser.Scene {
     SFX.pop();
     const tint = mold.kind === "boss" ? [0xff7ab0, 0xffffff]
       : [0xff9ed1, 0xa8f0c0, 0xc9a8ff, 0xfff0a0, 0x9fd8ff];
-    this.add.particles(mold.x, mold.y, "dot", {
+    this.burst(mold.x, mold.y, {
+      texture: "dot",
       speed: { min: 80, max: 300 }, scale: { start: 1.2, end: 0 },
       lifespan: 450, quantity: mold.kind === "boss" ? 44 : 18,
-      tint, blendMode: "ADD", emitting: false,
-    }).explode();
+      tint, blendMode: "ADD",
+    });
     const txt = this.add.text(mold.x, mold.y, `+${mold.score}`, {
       fontSize: "26px", color: "#ffffff", fontStyle: "bold", stroke: "#000", strokeThickness: 3,
     }).setOrigin(0.5).setDepth(20);
@@ -369,18 +398,18 @@ export default class Game extends Phaser.Scene {
 
     const meters = Math.floor(this.dist / 10);
     const newHi = Math.max(this.hiscore, meters);
-    localStorage.setItem(HISCORE_KEY, String(newHi));
+    storage.set(HISCORE_KEY, newHi);
 
     // ベストスコアを記録
-    const prevBestScore = parseInt(localStorage.getItem(SCORE_BEST_KEY) || "0", 10) || 0;
+    const prevBestScore = storage.getInt(SCORE_BEST_KEY, 0);
     const newHiScore = Math.max(prevBestScore, this.score);
-    localStorage.setItem(SCORE_BEST_KEY, String(newHiScore));
+    storage.set(SCORE_BEST_KEY, newHiScore);
 
     // 最高到達称号を記録（今回が更新ならtrue）
     const curRank = rankIndex(this.score);
-    const prevBestRank = parseInt(localStorage.getItem(RANK_BEST_KEY) || "0", 10) || 0;
+    const prevBestRank = storage.getInt(RANK_BEST_KEY, 0);
     const bestRank = Math.max(prevBestRank, curRank);
-    localStorage.setItem(RANK_BEST_KEY, String(bestRank));
+    storage.set(RANK_BEST_KEY, bestRank);
 
     this.time.delayedCall(1000, () =>
       this.scene.start("Result", {
@@ -477,11 +506,12 @@ export default class Game extends Phaser.Scene {
     }).setOrigin(0.5);
     wrap.add([sub, name]);
     // きらめき
-    this.add.particles(cx, cy, "dot", {
+    this.burst(cx, cy, {
+      texture: "dot", depth: 39, scrollFactor: 0,
       speed: { min: 120, max: 380 }, scale: { start: 1.1, end: 0 },
       lifespan: 700, quantity: 28, tint: [0xffe14a, 0xffffff, 0xffc227],
-      blendMode: "ADD", emitting: false,
-    }).setScrollFactor(0).setDepth(39).explode();
+      blendMode: "ADD",
+    });
     this.cameras.main.flash(220, 255, 230, 150);
     // ポップ→保持→上へフェード
     wrap.setScale(0.2); wrap.setAlpha(0);
@@ -499,7 +529,12 @@ export default class Game extends Phaser.Scene {
     // ESCでタイトルへ（プレイ途中でも即時。状態はcreateで再初期化される）
     if (Phaser.Input.Keyboard.JustDown(this.keys.esc)) { this.goTitle(); return; }
 
-    if (this.paused) return;   // 一時停止中はゲーム進行を止める（HUDボタンは生きたまま）
+    if (this.paused) {
+      // 一時停止中はゲーム進行を止める（HUDボタンは生きたまま）。
+      // 弾の寿命は scene 時間で数えるため、停止した分だけ寿命を延ばして再開時に消えないようにする
+      this.bolts.getChildren().forEach((b) => { if (b.active) b.bornAt += delta; });
+      return;
+    }
 
     if (!this.ended) {
       const k = this.keys;

@@ -38,11 +38,17 @@ export default class Title extends Phaser.Scene {
     }).setOrigin(0.5);
     this.tweens.add({ targets: start, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
 
-    const startGame = () => { SFX.unlock(); BGM.play(); this.scene.start("Game"); };
+    // Space とタップが同フレームに来ても scene.start を二重に呼ばない
+    let started = false;
+    const startGame = () => {
+      if (started) return;
+      started = true;
+      SFX.unlock(); BGM.play(); this.scene.start("Game");
+    };
     this.input.keyboard.once("keydown-SPACE", startGame);
     this.input.keyboard.once("keydown-ENTER", startGame);
     this.input.keyboard.on("keydown-M", () => BGM.toggleMute());   // ミュートは画面ボタン廃止・Mキーのみ
     // タップでスタート
-    this.input.on("pointerdown", startGame);
+    this.input.once("pointerdown", startGame);
   }
 }

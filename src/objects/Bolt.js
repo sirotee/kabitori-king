@@ -32,6 +32,10 @@ export default class Bolt extends Phaser.Physics.Arcade.Image {
 
   fire() {
     this.setActive(true).setVisible(true);
+    // プール再利用時、前回の拡縮tweenで止まった scale を引き継ぐと
+    // 見た目とボディサイズが回を追うごとに肥大するのでリセットする
+    this.setDisplaySize(30, 30);
+    this.body.setSize(40, 190);
     this.body.enable = true;
     this.setVelocity(BOLT_SPEED, 0);
     this.bornAt = this.scene.time.now;

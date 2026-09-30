@@ -2,6 +2,8 @@
 // シーンをまたいでも同じインスタンスを使う＝二重再生しない。
 // BGMはサイズが大きいので Boot ではロードせず、Title/Game 到達後に遅延ロードして
 // 初期ローディング（ローディング画面）をブロックしないようにする。
+import { storage } from "./storage.js";
+
 let snd = null;
 let wantPlay = false;             // ユーザー操作で再生要求済みか（ロード完了後に自動再生する）
 const MUTE_KEY = "kabi_bgm_mute";
@@ -14,7 +16,7 @@ export const BGM = {
     if (snd) return snd;
     if (!scene.cache.audio.exists("bgm")) return null;   // まだ読み込まれていない
     snd = scene.sound.add("bgm", { loop: true, volume: VOLUME });
-    snd.setMute(localStorage.getItem(MUTE_KEY) === "1");
+    snd.setMute(storage.get(MUTE_KEY) === "1");
     if (wantPlay && !snd.isPlaying) snd.play();           // 既に再生要求済みなら鳴らす
     return snd;
   },
@@ -37,12 +39,12 @@ export const BGM = {
 
   // ミュートはローカル保存に基づいて切替（未ロードでも設定だけ保持し、ロード後に反映）
   toggleMute() {
-    const m = !(localStorage.getItem(MUTE_KEY) === "1");
+    const m = !(storage.get(MUTE_KEY) === "1");
     if (snd) snd.setMute(m);
-    localStorage.setItem(MUTE_KEY, m ? "1" : "0");
+    storage.set(MUTE_KEY, m ? "1" : "0");
     return m;
   },
   isMuted() {
-    return localStorage.getItem(MUTE_KEY) === "1";
+    return storage.get(MUTE_KEY) === "1";
   },
 };

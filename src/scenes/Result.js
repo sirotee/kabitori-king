@@ -75,7 +75,8 @@ export default class Result extends Phaser.Scene {
     }).setOrigin(0.5);
     this.tweens.add({ targets: retry, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
 
-    const again = () => this.scene.start("Game");
+    let started = false;
+    const again = () => { if (started) return; started = true; this.scene.start("Game"); };
     this.input.keyboard.once("keydown-SPACE", again);
     this.input.keyboard.once("keydown-ENTER", again);
     this.input.once("pointerdown", again);

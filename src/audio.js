@@ -6,8 +6,9 @@ function ac() {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (AC) ctx = new AC();
   }
-  // ユーザー操作後に resume が必要なブラウザ対策
-  if (ctx && ctx.state === "suspended") ctx.resume();
+  // ユーザー操作後に resume が必要なブラウザ対策。
+  // iOS はアプリ切替/電話着信で "interrupted" 状態になるため "suspended" 限定にしない
+  if (ctx && ctx.state !== "running") { try { ctx.resume(); } catch (_) {} }
   return ctx;
 }
 

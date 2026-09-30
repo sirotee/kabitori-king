@@ -3,6 +3,12 @@ import Title from "./scenes/Title.js";
 import Game from "./scenes/Game.js";
 import Result from "./scenes/Result.js";
 
+// Phaser(CDN) が読めていなければエラー表示して止める（真っ黒画面のまま固まらせない）
+if (typeof Phaser === "undefined") {
+  if (window.showLoadError) window.showLoadError();
+  throw new Error("Phaser failed to load");
+}
+
 // 解像度を上げて描画をくっきりさせる（720p基準）
 export const GAME_W = 1280;
 export const GAME_H = 720;
@@ -32,6 +38,14 @@ function bindBtn(id, onDown, onUp) {
 bindBtn("btn-jump",  () => { touch.jump = true; touch.jumpEdge = true; }, () => touch.jump = false);
 bindBtn("btn-fire",  () => { touch.fire = true; touch.fireEdge = true; }, () => touch.fire = false);
 
+// 押しっぱなし状態のリセット。アプリ切替・画面回転などで touchend を取りこぼすと
+// 「魔法が勝手に連射され続ける」ため、フォーカスを失った時点で全て離した扱いにする
+export function resetTouch() {
+  touch.jump = false; touch.jumpEdge = false; touch.fire = false; touch.fireEdge = false;
+}
+window.addEventListener("blur", resetTouch);
+document.addEventListener("visibilitychange", () => { if (document.hidden) resetTouch(); });
+
 const config = {
   type: Phaser.AUTO,
   width: GAME_W,
@@ -48,6 +62,10 @@ const config = {
   // 丸めると小さな上下動が階段状になるためroundPixelsはOFF。
   // powerPreference: 端末に高性能GPUを要求しスマホのフレームレート低下を抑える。
   render: { antialias: true, roundPixels: false, powerPreference: "high-performance" },
+  // 1フレームの delta 上限 = 1000/min ms。既定(min:5)だと最大200msの delta が渡り、
+  // フレーム落ち時に弾がカビをすり抜けたり穴の判定を飛び越えたりする。
+  // 50ms(20fps相当)で頭打ちにし、重い時は「すり抜け」ではなく「わずかなスロー」に倒す。
+  fps: { min: 20, smoothStep: true },
   physics: {
     default: "arcade",
     // fixedStep を切り、物理(カビ/アイテム)も実フレームdeltaで動かす。
@@ -68,10 +86,16 @@ function applyOrientation() {
   const portrait = portraitMQ.matches;
   document.body.classList.toggle("portrait", portrait);
   if (portrait) {
-    if (game.scene.isActive("Game")) game.scene.pause("Game");
+    if (game.scene.isActive("Game")) {
+      // ゲーム内の一時停止も同時に入れる → 横に戻した瞬間に即再開して死なない（タップで再開）
+      const g = game.scene.getScene("Game");
+      if (g && g.pauseGame) g.pauseGame();
+      game.scene.pause("Game");
+    }
   } else {
     if (game.scene.isPaused("Game")) game.scene.resume("Game");
   }
+  resetTouch();
   // セーフエリア内にCanvasを収め直す
   game.scale.refresh();
 }

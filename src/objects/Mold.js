@@ -63,7 +63,8 @@ export default class Mold extends Phaser.Physics.Arcade.Sprite {
 
   preUpdate(t, d) {
     super.preUpdate(t, d);
-    const dt = d / 1000;
+    // dt=0 だと着地補正の除算が Infinity/NaN になり座標が壊れるので下限を設ける
+    const dt = Math.max(d, 1) / 1000;
 
     // 水平: 常にスクロール（roller は加算ぶん速い）
     this.body.velocity.x = -(this.scrollSpeed + this.extraSpeed);
