@@ -1,9 +1,12 @@
 import { SFX } from "../audio.js";
 import { BGM } from "../bgm.js";
-import { getPlayerName, setPlayerName } from "../ranking.js";
+import { getPlayerName, setPlayerName, getRecentNames } from "../ranking.js";
 
 export default class Title extends Phaser.Scene {
   constructor() { super("Title"); }
+
+  // Result の「＋新しい人」から来た時は名前入力をすぐ開く
+  init(data) { this.autoEntry = !!(data && data.entry); }
 
   create() {
     const { width, height } = this.scale;
@@ -53,6 +56,7 @@ export default class Title extends Phaser.Scene {
     this.input.keyboard.on("keydown-M", () => BGM.toggleMute());   // ミュートは画面ボタン廃止・Mキーのみ
     this.input.once("pointerdown", openEntry);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.hideNameEntry());
+    if (this.autoEntry) openEntry();
   }
 
   // ---------------- 名前入力（index.html の #name-entry） ----------------
@@ -66,21 +70,39 @@ export default class Title extends Phaser.Scene {
     this.input.keyboard.enabled = false;
     this.input.keyboard.disableGlobalCapture();
 
-    input.value = getPlayerName();
-    box.classList.add("show");
     let started = false;
-    this.onNameSubmit = (e) => {
-      e.preventDefault();
+    const begin = (name) => {
       if (started) return;
       started = true;
-      setPlayerName(input.value);
+      setPlayerName(name);
       input.blur();
       this.scene.start("Game");
     };
+
+    // 直近プレイヤーはワンタップで開始
+    const recent = getRecentNames();
+    const wrap = document.getElementById("recent-names");
+    const chips = document.getElementById("recent-chips");
+    if (wrap && chips) {
+      chips.replaceChildren(...recent.map((n) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = n;
+        b.addEventListener("click", () => begin(n));
+        return b;
+      }));
+      wrap.classList.toggle("show", recent.length > 0);
+    }
+
+    input.value = recent.length ? "" : getPlayerName();
+    box.classList.add("show");
+    this.onNameSubmit = (e) => { e.preventDefault(); begin(input.value); };
     form.addEventListener("submit", this.onNameSubmit);
-    // 同じタップの中で focus するとスマホでもキーボードが開く
-    input.focus();
-    if (input.value) input.select();
+    // 直近プレイヤーがいる時は選びやすいようキーボードを開かない。いない時は同じタップの中で focus（スマホでもキーボードが開く）
+    if (!recent.length) {
+      input.focus();
+      if (input.value) input.select();
+    }
   }
 
   hideNameEntry() {

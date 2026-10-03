@@ -1,6 +1,6 @@
 import { rankNameByIndex } from "../rank.js";
 import { SFX } from "../audio.js";
-import { addRecord, getPlayerName, SHOW } from "../ranking.js";
+import { addRecord, getPlayerName, setPlayerName, getRecentNames, SHOW } from "../ranking.js";
 
 export default class Result extends Phaser.Scene {
   constructor() { super("Result"); }
@@ -83,24 +83,64 @@ export default class Result extends Phaser.Scene {
 
     this.drawRanking(list, place, id);
 
-    const retry = this.add.text(lx, height * 0.89, "もう一度（タップ / Space）", {
+    const retry = this.add.text(lx, height * 0.9, "もう一度（タップ / Space）", {
       fontFamily: "sans-serif", fontSize: "26px", color: "#ffffff",
       backgroundColor: "#5b4bd6", padding: { x: 20, y: 12 },
     }).setOrigin(0.5);
     this.tweens.add({ targets: retry, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
 
-    // 1台を交代で遊ぶとき用。タイトルに戻って名前を入れ直す
-    const change = this.add.text(width * 0.75, height * 0.89, "プレイヤー交代", {
-      fontFamily: "sans-serif", fontSize: "24px", color: "#ffffff",
-      backgroundColor: "#3a2f6a", padding: { x: 20, y: 12 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    // 次のプレイヤー: 直近の人はタップでその名前のまま開始、「＋新しい人」はタイトルで名前入力
+    const { buttons, pick } = this.drawNextPlayers(name);
 
     let started = false;
     const go = (key) => { if (started) return; started = true; this.scene.start(key); };
     this.input.keyboard.once("keydown-SPACE", () => go("Game"));
     this.input.keyboard.once("keydown-ENTER", () => go("Game"));
-    // 交代ボタン以外のタップはもう一度
-    this.input.on("pointerdown", (_p, over) => go(over.includes(change) ? "Title" : "Game"));
+    // 名前ボタン以外のタップはもう一度（同じ人で）
+    this.input.on("pointerdown", (_p, over) => {
+      const hit = buttons.find((b) => over.includes(b));
+      if (!hit) return go("Game");
+      if (started) return;
+      started = true;
+      pick(hit);
+    });
+  }
+
+  drawNextPlayers(current) {
+    const { width, height } = this.scale;
+    const y = height * 0.9;
+    const left = width * 0.75 - 260, right = width * 0.75 + 260;
+    this.add.text(left, height * 0.835, "次のプレイヤー（タップで選ぶ）", {
+      fontFamily: "sans-serif", fontSize: "18px", color: "#cfd6ff", fontStyle: "bold",
+      stroke: "#000", strokeThickness: 3,
+    }).setOrigin(0, 0.5);
+
+    const short = (n) => { const a = Array.from(n); return a.length > 5 ? a.slice(0, 5).join("") + "…" : n; };
+    const items = getRecentNames().map((n) => ({ label: short(n), name: n, mine: n === current }));
+    items.push({ label: "＋新しい人", name: null });
+    const buttons = items.map((it) => {
+      const b = this.add.text(0, y, it.label, {
+        fontFamily: "sans-serif", fontSize: "20px", fontStyle: "bold",
+        color: it.name === null ? "#ffffff" : "#2a1d4a",
+        backgroundColor: it.name === null ? "#3a2f6a" : (it.mine ? "#ffd24a" : "#ffe9a8"),
+        padding: { x: 12, y: 10 },
+      }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true });
+      b.item = it;
+      return b;
+    });
+    // 横に詰めて並べ、右端に収まらなければ縮める
+    const gap = 10;
+    const total = buttons.reduce((s, b) => s + b.width, 0) + gap * (buttons.length - 1);
+    const scale = Math.min(1, (right - left) / total);
+    let x = left;
+    buttons.forEach((b) => { b.setScale(scale); b.x = x; x += b.width * scale + gap; });
+
+    const pick = (b) => {
+      if (b.item.name === null) { this.scene.start("Title", { entry: true }); return; }
+      setPlayerName(b.item.name);
+      this.scene.start("Game");
+    };
+    return { buttons, pick };
   }
 
   // ---------------- ランキング（右側パネル） ----------------

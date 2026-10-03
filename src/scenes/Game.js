@@ -77,6 +77,7 @@ export default class Game extends Phaser.Scene {
 
     // --- 地面（スクロールするセグメント。隙間=穴）---
     this.groundGroup = this.add.group();
+    this.pits = [];                   // 穴の見た目（当たり判定は地面の隙間で行うので描画だけ）
     this.spawnEdge = 0;
     this.sinceLastPit = 99999;
     this.fillGround();
@@ -202,6 +203,7 @@ export default class Game extends Phaser.Scene {
         // 穴幅: 難易度で PIT_MIN_W → 最大まで成長。最大は1ジャンプ到達距離の PIT_MAX_FACTOR 倍で頭打ち
         const maxJump = this.speed * AIRTIME * PIT_MAX_FACTOR;
         const w = Math.min(Phaser.Math.Linear(PIT_MIN_W, maxJump, f), maxJump);
+        this.createPit(this.spawnEdge, w);
         this.spawnEdge += w;
         this.sinceLastPit = 0;
       } else {
@@ -224,6 +226,72 @@ export default class Game extends Phaser.Scene {
     seg.top = this.add.rectangle(x0, GROUND_TOP, w, 4, 0x8a8ab0, 0.85)
       .setOrigin(0, 0).setDepth(4);
     this.groundGroup.add(seg);
+  }
+
+  // 穴の見た目。地面の隙間に「崩れたフチ・内壁・底なしの暗がり」を描く。
+  // フチの欠けは地面側に食い込ませる＝見た目の穴は実際より少し広い（見た目で油断して落ちない）
+  createPit(x0, w) {
+    const { height } = this.scale;
+    const H = height - GROUND_TOP;
+    const g = this.add.graphics({ x: x0, y: GROUND_TOP }).setDepth(5);
+    const R = Phaser.Math.Between;
+
+    // 奥の暗がり（上ほどわずかに明るく、底は真っ黒）
+    g.fillGradientStyle(0x1e1638, 0x1e1638, 0x000000, 0x000000, 1);
+    g.fillRect(0, 0, w, H);
+
+    // 内壁（左右）。下へ行くほど細く暗く＝奥行き
+    const wallW = Math.min(30, w * 0.18);
+    g.fillGradientStyle(0x4a4670, 0x34305a, 0x0a0816, 0x05040c, 1);
+    g.fillTriangle(0, 0, wallW, 0, 0, H);
+    g.fillTriangle(wallW, 0, wallW * 0.25, H, 0, H);
+    g.fillGradientStyle(0x34305a, 0x4a4670, 0x05040c, 0x0a0816, 1);
+    g.fillTriangle(w, 0, w - wallW, 0, w, H);
+    g.fillTriangle(w - wallW, 0, w - wallW * 0.25, H, w, H);
+    // 壁の石積みの目地
+    g.lineStyle(2, 0x15122a, 0.8);
+    for (let y = 16; y < H - 10; y += 20) {
+      const k = 1 - y / H;
+      g.lineBetween(2, y, wallW * k, y);
+      g.lineBetween(w - 2, y, w - wallW * k, y);
+    }
+
+    // 奥のフチ（向こう側の床の縁）。細い明るい線で穴の奥行きを出す
+    g.fillStyle(0x7a70aa, 0.55);
+    g.fillRect(wallW, 2, w - wallW * 2, 3);
+
+    // 底から立ちのぼる紫のもや（薄い楕円を重ねてぼかす＝底なし感）
+    for (let i = 0; i < 3; i++) {
+      const mx = w * (0.25 + Math.random() * 0.5), my = H - R(0, 10);
+      for (let k = 0; k < 4; k++) {
+        g.fillStyle(0x7a3ab0, 0.05);
+        g.fillEllipse(mx, my, 50 + k * 26, 14 + k * 8);
+      }
+    }
+
+    // フチの欠け（地面側へギザギザに食い込む）と、フチから伸びるヒビ
+    const lip = (dir) => {
+      const ex = dir > 0 ? 0 : w;   // 穴の端
+      const pts = [{ x: ex, y: 0 }];
+      for (let y = 0; y <= 34; y += R(6, 10)) pts.push({ x: ex - dir * R(4, 14), y });
+      pts.push({ x: ex, y: 40 });
+      g.fillStyle(0x0c0a1a, 1);
+      g.fillPoints(pts, true);
+      g.lineStyle(2, 0x2a2744, 0.9);
+      let cx = ex - dir * 10, cy = R(6, 14);
+      g.beginPath(); g.moveTo(cx, cy);
+      for (let i = 0; i < 3; i++) { cx -= dir * R(8, 16); cy += R(-4, 8); g.lineTo(cx, Math.max(5, cy)); }
+      g.strokePath();
+    };
+    lip(1); lip(-1);
+
+    // フチの影（地面の上面が穴に向かって暗く落ちる）
+    g.fillGradientStyle(0x55557a, 0x000000, 0x55557a, 0x000000, 0, 0.55, 0, 0.55);
+    g.fillRect(-26, 4, 26, H - 4);
+    g.fillGradientStyle(0x000000, 0x55557a, 0x000000, 0x55557a, 0.55, 0, 0.55, 0);
+    g.fillRect(w, 4, 26, H - 4);
+
+    this.pits.push(g);
   }
 
   // ---------------- 出現 ----------------
@@ -560,6 +628,7 @@ export default class Game extends Phaser.Scene {
       // 塗りとハイライトを同一フレームで動かすので1フレームのズレも出ない。
       const gd = this.speed * dt;
       this.groundGroup.getChildren().forEach((g) => { if (g.active) { g.x -= gd; if (g.top) g.top.x = g.x; } });
+      for (const p of this.pits) p.x -= gd;
 
       // 洗剤ゲージ: 無敵中は満タン維持（撃ち放題）、通常は徐々に回復
       if (this.king.isInvincible(time)) this.detergent = DETERGENT_MAX;
@@ -605,6 +674,7 @@ export default class Game extends Phaser.Scene {
     this.molds.getChildren().slice().forEach((m) => { if (m.active && m.x < -180) m.destroy(); });
     this.items.getChildren().slice().forEach((s) => { if (s.active && s.x < -140) { if (s.glow) s.glow.destroy(); s.destroy(); } });
     this.groundGroup.getChildren().slice().forEach((g) => { if (g.active && g.x + g.width < -80) { if (g.top) g.top.destroy(); g.destroy(); } });
+    while (this.pits.length && this.pits[0].x < -400) this.pits.shift().destroy();
 
     this.updateHUD();
   }

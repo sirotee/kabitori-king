@@ -4,6 +4,8 @@ import { storage } from "./storage.js";
 
 const NAME_KEY = "kabi_player_name";
 const RANKING_KEY = "kabi_ranking";
+const RECENT_KEY = "kabi_recent_names";
+export const RECENT_MAX = 3;      // 直近プレイヤーとして選べる人数
 export const NAME_MAX = 10;       // 名前の最大文字数
 export const SHOW = 10;           // Result に表示する件数
 const KEEP = 100;                 // 保存する件数
@@ -15,7 +17,23 @@ export function cleanName(raw) {
 }
 
 export function getPlayerName() { return storage.get(NAME_KEY, ""); }
-export function setPlayerName(name) { storage.set(NAME_KEY, cleanName(name)); }
+// 名前を確定し、直近プレイヤー一覧（新しい順・重複なし）の先頭に入れる
+export function setPlayerName(name) {
+  const n = cleanName(name);
+  storage.set(NAME_KEY, n);
+  const list = [n, ...getRecentNames().filter((x) => x !== n)].slice(0, RECENT_MAX);
+  storage.set(RECENT_KEY, JSON.stringify(list));
+  return n;
+}
+
+export function getRecentNames() {
+  try {
+    const list = JSON.parse(storage.get(RECENT_KEY, "[]"));
+    if (Array.isArray(list) && list.length) return list.filter((x) => typeof x === "string").slice(0, RECENT_MAX);
+  } catch (_) { /* 壊れていたら作り直す */ }
+  const last = getPlayerName();   // 一覧導入前に遊んだ人の名前を引き継ぐ
+  return last ? [last] : [];
+}
 
 export function loadRanking() {
   try {
