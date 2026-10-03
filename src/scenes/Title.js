@@ -1,5 +1,6 @@
 import { SFX } from "../audio.js";
 import { BGM } from "../bgm.js";
+import { getPlayerName, setPlayerName } from "../ranking.js";
 
 export default class Title extends Phaser.Scene {
   constructor() { super("Title"); }
@@ -38,17 +39,57 @@ export default class Title extends Phaser.Scene {
     }).setOrigin(0.5);
     this.tweens.add({ targets: start, alpha: 0.4, duration: 700, yoyo: true, repeat: -1 });
 
-    // Space とタップが同フレームに来ても scene.start を二重に呼ばない
+    // Space とタップが同フレームに来ても二重に処理しない。
+    // 1回目の入力で名前入力を出し、送信でゲーム開始
+    let opened = false;
+    const openEntry = () => {
+      if (opened) return;
+      opened = true;
+      SFX.unlock(); BGM.play();   // 音の解禁はユーザー操作の中で行う
+      this.showNameEntry();
+    };
+    this.input.keyboard.once("keydown-SPACE", openEntry);
+    this.input.keyboard.once("keydown-ENTER", openEntry);
+    this.input.keyboard.on("keydown-M", () => BGM.toggleMute());   // ミュートは画面ボタン廃止・Mキーのみ
+    this.input.once("pointerdown", openEntry);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.hideNameEntry());
+  }
+
+  // ---------------- 名前入力（index.html の #name-entry） ----------------
+  showNameEntry() {
+    const box = document.getElementById("name-entry");
+    const form = document.getElementById("name-form");
+    const input = document.getElementById("name-input");
+    if (!box || !form || !input) { this.scene.start("Game"); return; }
+
+    // Game で SPACE/W/X/Z をキャプチャ済みだと入力欄に文字が打てないので、表示中は解除
+    this.input.keyboard.enabled = false;
+    this.input.keyboard.disableGlobalCapture();
+
+    input.value = getPlayerName();
+    box.classList.add("show");
     let started = false;
-    const startGame = () => {
+    this.onNameSubmit = (e) => {
+      e.preventDefault();
       if (started) return;
       started = true;
-      SFX.unlock(); BGM.play(); this.scene.start("Game");
+      setPlayerName(input.value);
+      input.blur();
+      this.scene.start("Game");
     };
-    this.input.keyboard.once("keydown-SPACE", startGame);
-    this.input.keyboard.once("keydown-ENTER", startGame);
-    this.input.keyboard.on("keydown-M", () => BGM.toggleMute());   // ミュートは画面ボタン廃止・Mキーのみ
-    // タップでスタート
-    this.input.once("pointerdown", startGame);
+    form.addEventListener("submit", this.onNameSubmit);
+    // 同じタップの中で focus するとスマホでもキーボードが開く
+    input.focus();
+    if (input.value) input.select();
+  }
+
+  hideNameEntry() {
+    const box = document.getElementById("name-entry");
+    const form = document.getElementById("name-form");
+    if (form && this.onNameSubmit) form.removeEventListener("submit", this.onNameSubmit);
+    this.onNameSubmit = null;
+    if (box) box.classList.remove("show");
+    this.input.keyboard.enableGlobalCapture();
+    this.input.keyboard.enabled = true;
   }
 }

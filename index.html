@@ -116,12 +116,53 @@
       margin-top: 18px; font-size: 18px; font-weight: 700; color: #fff;
       background: #5b4bd6; border: 0; border-radius: 10px; padding: 12px 28px;
     }
+
+    /* 名前入力（タイトルでタップ後に表示）。スマホ横持ちでもキーボードに隠れないよう上寄せ */
+    #name-entry {
+      display: none;
+      position: absolute; inset: 0; z-index: 50;
+      background: rgba(14, 10, 30, 0.72);
+      align-items: flex-start; justify-content: center;
+      padding-top: 8vh;
+      touch-action: manipulation;
+    }
+    #name-entry.show { display: flex; }
+    #name-entry form {
+      width: min(92%, 460px);
+      background: #2a1d4a; border: 3px solid #ffd24a; border-radius: 14px;
+      padding: 22px 22px 20px; text-align: center; color: #fff;
+      box-shadow: 0 0 40px rgba(255, 210, 74, 0.35);
+    }
+    #name-entry label { display: block; font-size: 20px; font-weight: 800; color: #ffd24a; }
+    #name-entry input {
+      width: 100%; margin-top: 14px; padding: 12px 14px;
+      font-size: 22px; font-weight: 700; text-align: center;
+      color: #2a1d4a; background: #fff; border: 2px solid #5b4bd6; border-radius: 10px;
+      outline: none; user-select: text; -webkit-user-select: text;
+    }
+    #name-entry input:focus { border-color: #ffd24a; box-shadow: 0 0 0 3px rgba(255,210,74,0.5); }
+    #name-entry .hint { margin-top: 8px; font-size: 13px; color: #cfd6ff; }
+    #name-entry button {
+      margin-top: 16px; width: 100%; padding: 13px 0;
+      font-size: 22px; font-weight: 800; color: #fff;
+      background: #5b4bd6; border: 0; border-radius: 10px; cursor: pointer;
+    }
+    #name-entry button:focus-visible { outline: 3px solid #ffd24a; outline-offset: 2px; }
     .rh-sub   { margin-top: 12px; font-size: 16px; line-height: 1.7; color: #cfd6ff; }
   </style>
 </head>
 <body>
   <div id="stage">
     <div id="game-wrap"></div>
+    <!-- 名前入力（Title.js が表示/非表示を切り替える） -->
+    <div id="name-entry">
+      <form id="name-form" autocomplete="off">
+        <label for="name-input">なまえを入れてね</label>
+        <input id="name-input" type="text" maxlength="10" enterkeyhint="go" placeholder="例：カビ取り太郎" />
+        <div class="hint">ランキングに表示されます（10文字まで）</div>
+        <button type="submit">スタート！</button>
+      </form>
+    </div>
     <div id="touch-ui">
       <!-- JUMP: 太い上向き矢印（周辺視でも「上＝ジャンプ」と分かるシルエット） -->
       <div class="tbtn" id="btn-jump">
